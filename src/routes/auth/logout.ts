@@ -2,15 +2,16 @@ import type { Context } from "hono";
 
 import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
-import { deleteCookie, getCookie, getSignedCookie } from "hono/cookie";
+import { deleteCookie } from "hono/cookie";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { sessions } from "@/db/schema";
-import { COOKIE_OPTIONS, SESSION_COOKIE_NAME, SESSION_COOKIE_SECRET } from "@/session";
+import { sessions, UserType } from "@/db/schema";
+import { isUserAuthenticated } from "@/middlewares/auth-middleware";
+import { COOKIE_OPTIONS, SESSION_COOKIE_NAME } from "@/session";
 
 // Define response schemas
 const successResponseSchema = z.object({
@@ -55,6 +56,7 @@ async function invalidateAllUserSessions(c: Context, userId: number) {
 const logout = createRoute({
   method: "post",
   path: `/logout/{userid}`,
+  middleware: [isUserAuthenticated],
   request: {
     params: z.object({
       userid: z.string().describe("User ID to logout"),
@@ -65,9 +67,17 @@ const logout = createRoute({
       successResponseSchema,
       "Logout successful",
     ),
+    [HttpStatusCodes.BAD_REQUEST]: jsonContent(
+      errorResponseSchema,
+      "Invalid request parameters",
+    ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
       errorResponseSchema,
       "Unauthorized",
+    ),
+    [HttpStatusCodes.FORBIDDEN]: jsonContent(
+      errorResponseSchema,
+      "Forbidden",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
       errorResponseSchema,
@@ -89,31 +99,42 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
       cookies: c.req.header("cookie"),
     });
 
-    // Step 1: Get raw cookie first to debug
-    const rawCookie = getCookie(c, SESSION_COOKIE_NAME);
-    console.log("[Logout] Raw cookie value:", rawCookie);
-
-    // Step 2: Get signed cookie
-    const sessionToken = await getSignedCookie(c, SESSION_COOKIE_NAME, SESSION_COOKIE_SECRET);
-    console.log("[Logout] Session token retrieved:", {
-      exists: !!sessionToken,
-      token: sessionToken ? `${sessionToken.substring(0, 8)}...` : null,
-    });
-
-    // Even if we can't get the session token, we should still try to invalidate sessions
-    // based on the user ID as a fallback
-    const userId = Number.parseInt(params.userid, 10);
-    if (isNaN(userId)) {
-      console.log("[Logout] Invalid user ID format");
+    // Get the authenticated user from context (set by isUserAuthenticated middleware)
+    const authenticatedUser = c.get("user");
+    if (!authenticatedUser) {
+      console.log("[Logout] No authenticated user found in context");
       return c.json({
-        message: "Invalid user ID",
+        message: "Authentication required",
         error: "Unauthorized",
       }, HttpStatusCodes.UNAUTHORIZED);
     }
 
-    // Find all sessions for this user
+    // Parse the target user ID from the request params
+    const targetUserId = Number.parseInt(params.userid, 10);
+    if (isNaN(targetUserId)) {
+      console.log("[Logout] Invalid user ID format");
+      return c.json({
+        message: "Invalid user ID format",
+        error: "Bad Request",
+      }, HttpStatusCodes.BAD_REQUEST);
+    }
+
+    // Check if user is trying to logout themselves or if they're an admin
+    if (targetUserId !== authenticatedUser.id && authenticatedUser.type !== UserType.ADMIN) {
+      console.log("[Logout] Unauthorized logout attempt:", {
+        authenticatedUserId: authenticatedUser.id,
+        targetUserId,
+        userType: authenticatedUser.type,
+      });
+      return c.json({
+        message: "You can only logout your own account",
+        error: "Forbidden",
+      }, HttpStatusCodes.FORBIDDEN);
+    }
+
+    // Find all sessions for the target user
     const userSessions = await db.query.sessions.findMany({
-      where: (sessions, { eq }) => eq(sessions.userId, userId),
+      where: (sessions, { eq }) => eq(sessions.userId, targetUserId),
       with: {
         user: true,
       },
@@ -129,16 +150,17 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
 
     if (userSessions.length === 0) {
       console.log("[Logout] No active sessions found for user");
-      // Still clear the cookie even if no sessions found
-      await invalidateAllUserSessions(c, userId);
+      // Still clear the cookie if it's the authenticated user
+      if (targetUserId === authenticatedUser.id) {
+        await invalidateAllUserSessions(c, targetUserId);
+      }
       return c.json({
         message: "No active sessions found",
-        error: "Unauthorized",
-      }, HttpStatusCodes.UNAUTHORIZED);
+      }, HttpStatusCodes.OK);
     }
 
-    // Invalidate all sessions for this user
-    await invalidateAllUserSessions(c, userId);
+    // Invalidate all sessions for the target user
+    await invalidateAllUserSessions(c, targetUserId);
 
     console.log("[Logout] Logout process completed successfully");
     return c.json({

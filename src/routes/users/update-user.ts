@@ -105,14 +105,12 @@ const updateUser = createRoute({
 
 const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
   try {
-    // Get authenticated user and request data
     const currentUser = c.get("user");
     const params = c.req.valid("param");
-    let updateData = c.req.valid("json");
+    const updateData = c.req.valid("json");
 
     const targetUserId = Number(params.userId);
 
-    // Log request details for debugging
     console.log("[Update User] Request details:", {
       currentUserId: currentUser?.id,
       targetUserId,
@@ -151,35 +149,31 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
       }, HttpStatusCodes.NOT_FOUND);
     }
 
-    // Regular users can only update specific fields
-    if (!isAdmin) {
-      const allowedFields = ["name", "lastName"];
-      const restrictedUpdate = Object.fromEntries(
-        Object.entries(updateData).filter(([key]) => allowedFields.includes(key)),
-      );
+    // Ensure no protected fields are being updated
+    const protectedFields = ["password", "id", "createdAt", "updatedAt", "type"];
+    const sanitizedUpdate = Object.fromEntries(
+      Object.entries(updateData).filter(([key]) => !protectedFields.includes(key)),
+    );
 
-      if (Object.keys(restrictedUpdate).length === 0) {
-        return c.json({
-          success: false,
-          error: {
-            name: "ValidationError",
-            issues: [{
-              code: "invalid_update",
-              path: [],
-              message: "No valid fields to update",
-            }],
-          },
-        }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
-      }
-
-      updateData = restrictedUpdate;
+    if (Object.keys(sanitizedUpdate).length === 0) {
+      return c.json({
+        success: false,
+        error: {
+          name: "ValidationError",
+          issues: [{
+            code: "invalid_update",
+            path: [],
+            message: "No valid fields to update",
+          }],
+        },
+      }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
     }
 
     // Perform the database update
     const [updatedUser] = await db
       .update(users)
       .set({
-        ...updateData,
+        ...sanitizedUpdate,
         updatedAt: new Date(), // Automatically update timestamp
       })
       .where(eq(users.id, targetUserId))
