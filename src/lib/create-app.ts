@@ -19,12 +19,29 @@ export default function createApp() {
   app.use(serveEmojiFavicon("📝"));
   app.use(pinoLogger());
   app.use(cors({
-    origin: "*", // For development. In production, set to your frontend domain
-    allowMethods: ["POST", "GET", "OPTIONS", "DELETE", "PUT"],
-    allowHeaders: ["Content-Type", "Authorization", "Accept"],
-    exposeHeaders: ["Content-Length", "X-Kuma-Revision"],
-    credentials: true, // Important for cookies
-    maxAge: 600,
+    origin: "http://localhost:3000", // Remove trailing slash
+    allowMethods: [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "PATCH",
+      "HEAD",
+      "OPTIONS",
+    ],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+    ],
+    exposeHeaders: [
+      "Content-Length",
+      "X-Kuma-Revision",
+    ],
+    credentials: true,
+    maxAge: 86400, // 24 hours
   }));
 
   app.notFound(notFound);

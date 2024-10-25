@@ -17,11 +17,6 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]),
   DATABASE_URL: z.string().url(),
   DATABASE_AUTH_TOKEN: z.string().optional(),
-  KINDE_DOMAIN: z.string(),
-  KINDE_CLIENT_ID: z.string(),
-  KINDE_CLIENT_SECRET: z.string(),
-  KINDE_REDIRECT_URI: z.string(),
-  KINDE_LOGOUT_REDIRECT_URI: z.string(),
   SESSION_COOKIE_SECRET: z.string().min(32),
 
 }).superRefine((input, ctx) => {
