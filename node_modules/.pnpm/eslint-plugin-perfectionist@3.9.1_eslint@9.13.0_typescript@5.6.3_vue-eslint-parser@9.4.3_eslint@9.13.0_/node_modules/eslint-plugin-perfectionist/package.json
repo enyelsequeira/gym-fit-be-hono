@@ -1,0 +1,61 @@
+{
+  "name": "eslint-plugin-perfectionist",
+  "description": "ESLint plugin for sorting various data such as objects, imports, types, enums, JSX props, etc.",
+  "version": "3.9.1",
+  "homepage": "https://perfectionist.dev",
+  "repository": "azat-io/eslint-plugin-perfectionist",
+  "author": "Azat S. <to@azat.io>",
+  "license": "MIT",
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "perfectionist"
+  ],
+  "engines": {
+    "node": "^18.0.0 || >=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "./dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "peerDependenciesMeta": {
+    "astro-eslint-parser": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "svelte-eslint-parser": {
+      "optional": true
+    },
+    "vue-eslint-parser": {
+      "optional": true
+    }
+  },
+  "peerDependencies": {
+    "astro-eslint-parser": "^1.0.2",
+    "eslint": ">=8.0.0",
+    "svelte": ">=3.0.0",
+    "svelte-eslint-parser": "^0.41.1",
+    "vue-eslint-parser": ">=9.0.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/types": "^8.9.0",
+    "@typescript-eslint/utils": "^8.9.0",
+    "minimatch": "^9.0.5",
+    "natural-compare-lite": "^1.4.0"
+  }
+}

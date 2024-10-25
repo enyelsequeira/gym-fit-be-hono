@@ -1,0 +1,56 @@
+import { z } from "@hono/zod-openapi";
+import type { ZodSchema } from "../helpers/types.ts";
+declare const createErrorSchema: <T extends ZodSchema>(schema: T) => z.ZodObject<{
+    success: z.ZodBoolean;
+    error: z.ZodObject<{
+        issues: z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            path: z.ZodArray<z.ZodUnion<[z.ZodString, z.ZodNumber]>, "many">;
+            message: z.ZodOptional<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }, {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }>, "many">;
+        name: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        issues: {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }[];
+        name: string;
+    }, {
+        issues: {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }[];
+        name: string;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    error: {
+        issues: {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }[];
+        name: string;
+    };
+    success: boolean;
+}, {
+    error: {
+        issues: {
+            code: string;
+            path: (string | number)[];
+            message?: string | undefined;
+        }[];
+        name: string;
+    };
+    success: boolean;
+}>;
+export default createErrorSchema;

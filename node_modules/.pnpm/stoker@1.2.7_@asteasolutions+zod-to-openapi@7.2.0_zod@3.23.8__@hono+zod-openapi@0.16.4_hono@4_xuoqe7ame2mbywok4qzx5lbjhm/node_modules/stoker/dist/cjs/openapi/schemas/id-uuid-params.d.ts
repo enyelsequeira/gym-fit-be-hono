@@ -1,0 +1,9 @@
+import { z } from "@hono/zod-openapi";
+declare const IdUUIDParamsSchema: z.ZodObject<{
+    id: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+}, {
+    id: string;
+}>;
+export = IdUUIDParamsSchema;
