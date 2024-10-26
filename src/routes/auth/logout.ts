@@ -9,7 +9,7 @@ import { jsonContent } from "stoker/openapi/helpers";
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { sessions, UserType } from "@/db/schema";
+import { sessions } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { COOKIE_OPTIONS, SESSION_COOKIE_NAME } from "@/session";
 
@@ -90,7 +90,6 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
   console.log("[Logout] Starting logout process");
 
   try {
-    // Log request parameters and cookies
     const params = c.req.valid("param");
     console.log("[Logout] Request params:", {
       userid: params.userid,
@@ -99,7 +98,7 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
       cookies: c.req.header("cookie"),
     });
 
-    // Get the authenticated user from context (set by isUserAuthenticated middleware)
+    // Get the authenticated user from context
     const authenticatedUser = c.get("user");
     if (!authenticatedUser) {
       console.log("[Logout] No authenticated user found in context");
@@ -119,12 +118,11 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
       }, HttpStatusCodes.BAD_REQUEST);
     }
 
-    // Check if user is trying to logout themselves or if they're an admin
-    if (targetUserId !== authenticatedUser.id && authenticatedUser.type !== UserType.ADMIN) {
+    // Strict check: User can only logout themselves
+    if (targetUserId !== authenticatedUser.id) {
       console.log("[Logout] Unauthorized logout attempt:", {
         authenticatedUserId: authenticatedUser.id,
         targetUserId,
-        userType: authenticatedUser.type,
       });
       return c.json({
         message: "You can only logout your own account",
@@ -132,35 +130,8 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
       }, HttpStatusCodes.FORBIDDEN);
     }
 
-    // Find all sessions for the target user
-    const userSessions = await db.query.sessions.findMany({
-      where: (sessions, { eq }) => eq(sessions.userId, targetUserId),
-      with: {
-        user: true,
-      },
-    });
-
-    console.log("[Logout] Found user sessions:", {
-      count: userSessions.length,
-      sessions: userSessions.map(s => ({
-        id: `${s.id.substring(0, 8)}...`,
-        expiresAt: s.expiresAt,
-      })),
-    });
-
-    if (userSessions.length === 0) {
-      console.log("[Logout] No active sessions found for user");
-      // Still clear the cookie if it's the authenticated user
-      if (targetUserId === authenticatedUser.id) {
-        await invalidateAllUserSessions(c, targetUserId);
-      }
-      return c.json({
-        message: "No active sessions found",
-      }, HttpStatusCodes.OK);
-    }
-
-    // Invalidate all sessions for the target user
-    await invalidateAllUserSessions(c, targetUserId);
+    // Find and invalidate the current user's sessions
+    await invalidateAllUserSessions(c, authenticatedUser.id);
 
     console.log("[Logout] Logout process completed successfully");
     return c.json({

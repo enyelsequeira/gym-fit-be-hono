@@ -3,8 +3,6 @@ import { cors } from "hono/cors";
 import { notFound, onError, serveEmojiFavicon } from "stoker/middlewares";
 import { defaultHook } from "stoker/openapi";
 
-import { pinoLogger } from "@/middlewares/pino-logger";
-
 import type { AppBindings } from "./types";
 
 export function createRouter() {
@@ -17,7 +15,7 @@ export function createRouter() {
 export default function createApp() {
   const app = createRouter();
   app.use(serveEmojiFavicon("📝"));
-  app.use(pinoLogger());
+  // app.use(pinoLogger());
   app.use(cors({
     origin: "http://localhost:3000", // Remove trailing slash
     allowMethods: [

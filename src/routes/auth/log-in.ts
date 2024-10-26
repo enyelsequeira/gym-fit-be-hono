@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import { createErrorSchema } from "stoker/openapi/schemas";
+import { z } from "zod";
 
 import type { AppRouteHandler } from "@/lib/types";
 
@@ -37,7 +38,6 @@ const login = createRoute({
 
 const loginHandler: AppRouteHandler<typeof login> = async (c) => {
   const { username, password } = c.req.valid("json");
-
   try {
     const user = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.username, username),
@@ -73,6 +73,10 @@ const loginHandler: AppRouteHandler<typeof login> = async (c) => {
     );
   }
   catch (error) {
+    console.log({
+      demooooooo: error instanceof z.ZodError,
+      hellooooo: error,
+    });
     // Handle validation errors
     if (error instanceof Error && error.name === "ValidationError") {
       return c.json(
