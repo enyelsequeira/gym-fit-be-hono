@@ -238,6 +238,7 @@ export const userSchema = z.object({
 
 // Update the select and insert schemas
 export const selectUsersSchema = createSelectSchema(users);
+export const selectFoods = createSelectSchema(foods);
 
 export const insertUsersSchema = createInsertSchema(
   users,
