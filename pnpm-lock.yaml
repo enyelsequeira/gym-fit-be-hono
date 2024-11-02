@@ -72,6 +72,9 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      drizzle-dbml-generator:
+        specifier: ^0.9.0
+        version: 0.9.0(drizzle-orm@0.33.0(@libsql/client@0.14.0)(react@18.3.1))
       drizzle-kit:
         specifier: ^0.24.2
         version: 0.24.2
@@ -1553,6 +1556,11 @@ packages:
   dotenv@16.4.5:
     resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
     engines: {node: '>=12'}
+
+  drizzle-dbml-generator@0.9.0:
+    resolution: {integrity: sha512-R/INfHUJNtxUkanSng8suh6er3snYKzMLFCeshqMMtGbrzo1+ulOY6qyrWXkY1d5jLuFwydySUD6bIZSyr0aSg==}
+    peerDependencies:
+      drizzle-orm: '>=0.32.0'
 
   drizzle-kit@0.24.2:
     resolution: {integrity: sha512-nXOaTSFiuIaTMhS8WJC2d4EBeIcN9OSt2A2cyFbQYBAZbi7lRsVGJNqDpEwPqYfJz38yxbY/UtbvBBahBfnExQ==}
@@ -4371,6 +4379,10 @@ snapshots:
       dotenv: 16.4.5
 
   dotenv@16.4.5: {}
+
+  drizzle-dbml-generator@0.9.0(drizzle-orm@0.33.0(@libsql/client@0.14.0)(react@18.3.1)):
+    dependencies:
+      drizzle-orm: 0.33.0(@libsql/client@0.14.0)(react@18.3.1)
 
   drizzle-kit@0.24.2:
     dependencies:

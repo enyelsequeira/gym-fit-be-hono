@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "lint:fix": "npm run lint --fix",
     "test": "cross-env NODE_ENV=test vitest",
-    "build": "tsc && tsc-alias"
+    "build": "tsc && tsc-alias",
+    "seed": "tsx seed.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.1",
@@ -36,6 +37,7 @@
     "@antfu/eslint-config": "^3.7.3",
     "@types/node": "^22.7.4",
     "cross-env": "^7.0.3",
+    "drizzle-dbml-generator": "^0.9.0",
     "drizzle-kit": "^0.24.2",
     "eslint": "^9.12.0",
     "eslint-plugin-format": "^0.1.2",

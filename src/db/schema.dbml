@@ -1,0 +1,188 @@
+table diets {
+  id integer [pk, not null, increment]
+  user_id integer [not null]
+  name text [not null]
+  description text
+  type text [not null]
+  calorie_target integer [not null]
+  protein_target real
+  carb_target real
+  fat_target real
+  start_date integer
+  end_date integer
+  active integer [default: 1]
+  created_at integer
+  updated_at integer
+
+  indexes {
+    user_id [name: 'diets_user_id_idx']
+    (user_id, active) [name: 'diets_active_idx']
+  }
+}
+
+table exercise_templates {
+  id integer [pk, not null, increment]
+  name text [not null]
+  description text [not null]
+  muscle_groups text [not null]
+  equipment text
+  video_url text
+  created_by integer
+  created_at integer
+}
+
+table exercises {
+  id integer [pk, not null, increment]
+  workout_id integer [not null]
+  name text [not null]
+  sets integer [not null]
+  repetitions integer [not null]
+  weight real
+  duration integer
+  distance real
+  rest_time integer
+  notes text
+  order integer [not null]
+  created_at integer
+
+  indexes {
+    workout_id [name: 'exercises_workout_id_idx']
+    (workout_id, order) [name: 'exercises_order_idx']
+  }
+}
+
+table foods {
+  id integer [pk, not null, increment]
+  name text [not null]
+  brand text
+  category text [not null]
+  serving_size real [not null]
+  serving_unit text [not null]
+  calories real [not null]
+  protein real [not null]
+  fat real [not null]
+  carbs real [not null]
+  picture text
+  barcode text [unique]
+  verified integer [default: 0]
+  created_by integer [not null]
+  created_at integer
+  updated_at integer
+
+  indexes {
+    name [name: 'foods_name_idx']
+    barcode [name: 'foods_barcode_idx']
+    category [name: 'foods_category_idx']
+  }
+}
+
+table meal_foods {
+  id integer [pk, not null, increment]
+  meal_id integer [not null]
+  food_id integer [not null]
+  quantity real [not null]
+  unit text [not null]
+  notes text
+  order integer [not null]
+  created_at integer
+
+  indexes {
+    meal_id [name: 'meal_foods_meal_id_idx']
+    (meal_id, order) [name: 'meal_foods_order_idx']
+  }
+}
+
+table meals {
+  id integer [pk, not null, increment]
+  diet_id integer [not null]
+  type text [not null]
+  name text [not null]
+  target_calories integer
+  time integer [not null]
+  duration integer
+  notes text
+  completed integer [default: 0]
+  created_at integer
+
+  indexes {
+    diet_id [name: 'meals_diet_id_idx']
+    time [name: 'meals_time_idx']
+  }
+}
+
+table progress {
+  id integer [pk, not null, increment]
+  user_id integer [not null]
+  date integer [not null]
+  weight real
+  body_fat real
+  muscle_weight real
+  waist_circumference real
+  chest_circumference real
+  arm_circumference real
+  thigh_circumference real
+  notes text
+  picture text
+  created_at integer
+
+  indexes {
+    (user_id, date) [name: 'progress_user_date_idx']
+  }
+}
+
+table sessions {
+  id text [pk, not null]
+  user_id integer [not null]
+  expires_at integer [not null]
+  created_at integer
+}
+
+table users {
+  id integer [pk, not null, increment]
+  username text [not null, unique]
+  name text [not null]
+  lastName text [not null]
+  password text [not null]
+  type text [not null, default: 'USER']
+  created_at integer
+  updated_at integer
+}
+
+table workouts {
+  id integer [pk, not null, increment]
+  user_id integer [not null]
+  name text [not null]
+  date integer
+  duration integer [not null]
+  calories_burned real
+  notes text
+  rating integer
+  completed integer [default: 0]
+  created_at integer
+  updated_at integer
+
+  indexes {
+    user_id [name: 'workouts_user_id_idx']
+    date [name: 'workouts_date_idx']
+  }
+}
+
+ref: diets.user_id > users.id
+
+ref: exercise_templates.created_by - users.id
+
+ref: exercises.workout_id > workouts.id
+
+ref: foods.created_by - users.id
+
+ref: meal_foods.meal_id > meals.id
+
+ref: meal_foods.food_id > foods.id
+
+ref: meals.diet_id > diets.id
+
+ref: progress.user_id > users.id
+
+ref: sessions.user_id - users.id
+
+ref: workouts.user_id > users.id
