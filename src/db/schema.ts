@@ -261,6 +261,41 @@ export const insertUsersSchema = createInsertSchema(
   updatedAt: true,
 });
 
+export const insertFoodSchema = createInsertSchema(
+  foods,
+  {
+    name: schema => schema.name.trim().min(1).max(100),
+    brand: schema => schema.brand.trim().min(1).max(100),
+    category: schema => schema.category.min(1).max(100),
+    servingSize: schema => schema.servingSize,
+    servingUnit: schema => schema.servingUnit,
+    calories: schema => schema.calories,
+    protein: schema => schema.protein,
+    fat: schema => schema.fat,
+    carbs: schema => schema.carbs,
+    picture: schema => schema.picture.trim().min(1).max(1000),
+    barcode: schema => schema.barcode.trim().min(1).max(1000),
+  },
+).required({
+  name: true,
+  brand: true,
+  category: true,
+  servingSize: true,
+  servingUnit: true,
+  calories: true,
+  protein: true,
+  fat: true,
+  carbs: true,
+  picture: true,
+  barcode: true,
+
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  createdBy: true,
+});
+
 // Session related schemas
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
