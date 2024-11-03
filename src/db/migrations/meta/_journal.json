@@ -36,6 +36,41 @@
       "when": 1730507982541,
       "tag": "0004_special_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1730668759272,
+      "tag": "0005_bizarre_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1730669169994,
+      "tag": "0006_gigantic_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1730669332681,
+      "tag": "0007_salty_squadron_supreme",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1730669535964,
+      "tag": "0008_shiny_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1730669651676,
+      "tag": "0009_cuddly_stardust",
+      "breakpoints": true
     }
   ]
 }

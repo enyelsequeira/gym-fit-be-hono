@@ -11,27 +11,6 @@ export const UserType = {
   USER: "USER",
 } as const;
 
-export const diets = sqliteTable("diets", {
-  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
-  userId: integer("user_id", { mode: "number" }).notNull().references(() => users.id),
-  name: text("name").notNull(),
-  description: text("description"),
-  type: text("type", { enum: ["WEIGHT_LOSS", "MUSCLE_GAIN", "MAINTENANCE", "CUSTOM"] }).notNull(),
-  calorieTarget: integer("calorie_target").notNull(),
-  proteinTarget: real("protein_target"),
-  carbTarget: real("carb_target"),
-  fatTarget: real("fat_target"),
-  startDate: integer("start_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  endDate: integer("end_date", { mode: "timestamp" }),
-  active: integer("active", { mode: "boolean" }).default(true),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .$defaultFn(() => new Date())
-    .$onUpdate(() => new Date()),
-}, table => ({
-  userIdIdx: index("diets_user_id_idx").on(table.userId),
-  activeDietIdx: index("diets_active_idx").on(table.userId, table.active),
-}));
 export const foods = sqliteTable("foods", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -55,6 +34,28 @@ export const foods = sqliteTable("foods", {
   nameIdx: index("foods_name_idx").on(table.name),
   barcodeIdx: index("foods_barcode_idx").on(table.barcode),
   categoryIdx: index("foods_category_idx").on(table.category),
+}));
+
+export const diets = sqliteTable("diets", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  userId: integer("user_id", { mode: "number" }).notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type", { enum: ["WEIGHT_LOSS", "MUSCLE_GAIN", "MAINTENANCE", "CUSTOM"] }).notNull(),
+  calorieTarget: integer("calorie_target").notNull(),
+  proteinTarget: real("protein_target"),
+  carbTarget: real("carb_target"),
+  fatTarget: real("fat_target"),
+  startDate: integer("start_date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  endDate: integer("end_date", { mode: "timestamp" }),
+  active: integer("active", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => ({
+  userIdIdx: index("diets_user_id_idx").on(table.userId),
+  activeDietIdx: index("diets_active_idx").on(table.userId, table.active),
 }));
 
 // Exercise Templates for quick workout creation
@@ -162,16 +163,6 @@ export const workouts = sqliteTable("workouts", {
   dateIdx: index("workouts_date_idx").on(table.date),
 }));
 
-//   each user should have an array of workouts, they need to be linked by their id,
-// The workouts should consist of the following, of cours their id, and the relation will be the following
-// a user can have many workouts, it needs to include as well name of exercises, sets and repetions
-// each user need to have their diets which again needs to be an array showing all their diets
-// for diet will be the following, it will consist of the meals the user can have like breakfast, lunch, snack, dinner, snack
-// of course it needs to have the relation with the user, the user can have many diets. and we should be able to fetch all of them as well as specific diet based on their id
-// this also means the following we need to add a database with the following products/foods
-// in the food table we need to have the following, their id, the food name, quantity, the grams, protein, fat, and carbs and picture when availbale
-// now for the food table anyone can add products/food, but only the admin can delete them
-
 // Users table
 export const users = sqliteTable("users", {
   id: integer("id", { mode: "number" })
@@ -267,12 +258,12 @@ export const insertFoodSchema = createInsertSchema(
     name: schema => schema.name.trim().min(1).max(100),
     brand: schema => schema.brand.trim().min(1).max(100),
     category: schema => schema.category.min(1).max(100),
-    servingSize: schema => schema.servingSize,
+    servingSize: schema => schema.servingSize.min(1),
     servingUnit: schema => schema.servingUnit,
-    calories: schema => schema.calories,
-    protein: schema => schema.protein,
-    fat: schema => schema.fat,
-    carbs: schema => schema.carbs,
+    calories: schema => schema.calories.min(1),
+    protein: schema => schema.protein.min(1),
+    fat: schema => schema.fat.min(1),
+    carbs: schema => schema.carbs.min(1),
     picture: schema => schema.picture.trim().min(1).max(1000),
     barcode: schema => schema.barcode.trim().min(1).max(1000),
   },

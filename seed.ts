@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import db from "@/db";
-import { users } from "@/db/schema";
-import { foods } from "@/db/schemas/foods";
+import { foods, users } from "@/db/schema";
 
 import foodsData from "./food.json";
 
