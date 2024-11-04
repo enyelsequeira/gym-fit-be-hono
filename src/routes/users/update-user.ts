@@ -30,6 +30,12 @@ const updateUserSchema = selectUsersSchema
     createdAt: true, // System managed
     updatedAt: true, // System managed
   })
+  .extend({
+    dateOfBirth: z.coerce.date().nullable(),
+    height: z.coerce.string().nullable(),
+    weight: z.coerce.string().nullable(),
+    targetWeight: z.coerce.string().nullable(),
+  })
   .partial(); // Make all fields optional since it's a PATCH
 
 // Success response won't include password

@@ -71,6 +71,13 @@
       "when": 1730669651676,
       "tag": "0009_cuddly_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1730733083097,
+      "tag": "0010_sharp_boomerang",
+      "breakpoints": true
     }
   ]
 }

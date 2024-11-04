@@ -188,10 +188,13 @@ export const users = sqliteTable("users", {
   height: real("height"), // in cm
   weight: real("weight"), // in kg
   targetWeight: real("target_weight"),
+  country: text("country"),
+  city: text("city"),
+  phone: text("phone"),
+  occupation: text("occupation"),
   dateOfBirth: integer("date_of_birth", { mode: "timestamp" }),
   gender: text("gender", { enum: ["MALE", "FEMALE", "OTHER"] }),
   activityLevel: text("activity_level", { enum: ["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTREME"] }),
-
 });
 
 export const exercises = sqliteTable("exercises", {
@@ -214,18 +217,6 @@ export const exercises = sqliteTable("exercises", {
 
 // Type definitions
 export type User = InferSelectModel<typeof users>;
-
-// Custom Zod schemas for different user scenarios
-export const userSchema = z.object({
-  id: z.number(),
-  username: z.string().min(3).max(50),
-  name: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  password: z.string().min(8),
-  type: z.enum([UserType.ADMIN, UserType.USER]),
-  createdAt: z.date().nullable(),
-  updatedAt: z.date().nullable(),
-});
 
 // Update the select and insert schemas
 export const selectUsersSchema = createSelectSchema(users);
