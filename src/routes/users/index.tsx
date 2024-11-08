@@ -1,6 +1,7 @@
 import { createRouter } from "@/lib/create-app";
 import { createUser, createUserHandler } from "@/routes/users/create-user";
 import { getMe, getMeHandler } from "@/routes/users/get-me";
+import { getUserWeights, getUserWeightsHandler } from "@/routes/users/get-user-weights";
 import { listUser, userListHandler } from "@/routes/users/get-users";
 import { updateUser, updateUserHandler } from "@/routes/users/update-user";
 
@@ -11,6 +12,10 @@ const router = createRouter()
   )
   .openapi(createUser, createUserHandler)
   .openapi(getMe, getMeHandler)
-  .openapi(updateUser, updateUserHandler);
+  .openapi(updateUser, updateUserHandler)
+  .openapi(
+    getUserWeights,
+    getUserWeightsHandler,
+  );
 
 export default router;

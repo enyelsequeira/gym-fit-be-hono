@@ -197,6 +197,26 @@ export const users = sqliteTable("users", {
   activityLevel: text("activity_level", { enum: ["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTREME"] }),
 });
 
+export const weightHistory = sqliteTable("weight_history", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  userId: integer("user_id", { mode: "number" })
+    .notNull()
+    .references(() => users.id),
+  weight: real("weight").notNull(),
+  date: integer("date", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  source: text("source", { enum: ["MANUAL", "PROGRESS", "PROFILE_UPDATE"] }).notNull(),
+  notes: text("notes"),
+}, table => ({
+  userDateIdx: index("weight_history_user_date_idx").on(table.userId, table.date),
+}));
+
+export const weightHistoryRelations = relations(weightHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [weightHistory.userId],
+    references: [users.id],
+  }),
+}));
+
 export const exercises = sqliteTable("exercises", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   workoutId: integer("workout_id", { mode: "number" }).notNull().references(() => workouts.id),
@@ -303,6 +323,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdFoods: many(foods, { relationName: "creator" }),
   progress: many(progress),
   exerciseTemplates: many(exerciseTemplates, { relationName: "templateCreator" }),
+  weightHistory: many(weightHistory),
+
 }));
 
 export const foodsRelations = relations(foods, ({ one, many }) => ({

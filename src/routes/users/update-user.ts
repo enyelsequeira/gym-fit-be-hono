@@ -6,7 +6,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { selectUsersSchema, users, UserType } from "@/db/schema";
+import { selectUsersSchema, users, UserType, weightHistory } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { UserRoutesGeneral } from "@/routes/users/user.routes";
 
@@ -108,7 +108,6 @@ const updateUser = createRoute({
     ),
   },
 });
-
 const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
   try {
     const currentUser = c.get("user");
@@ -175,26 +174,64 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
       }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
     }
 
-    // Perform the database update
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        ...sanitizedUpdate,
-        updatedAt: new Date(), // Automatically update timestamp
-      })
-      .where(eq(users.id, targetUserId))
-      .returning();
+    try {
+      // Start a transaction for atomic updates
+      const result = await db.transaction(async (tx) => {
+        // Handle weight update with proper type conversion
+        if (sanitizedUpdate.weight !== undefined && sanitizedUpdate.weight !== null) {
+          const newWeight = Number(sanitizedUpdate.weight);
+          const currentWeight = existingUser.weight ? Number(existingUser.weight) : null;
 
-    console.log("[Update User] Successfully updated user:", targetUserId);
+          // Check if weight is actually different
+          if (!Number.isNaN(newWeight) && newWeight > 0 && newWeight !== currentWeight) {
+            // Create weight history entry
+            await tx.insert(weightHistory).values({
+              userId: targetUserId,
+              weight: newWeight,
+              date: new Date(),
+              source: "PROFILE_UPDATE",
+              notes: `Weight updated from ${currentWeight || "unset"} to ${newWeight}`,
+            });
 
-    // Remove password from response data
-    const { password: _, ...userWithoutPassword } = updatedUser;
-    return c.json(userWithoutPassword, HttpStatusCodes.OK);
+            console.log("[Update User] Created weight history entry:", {
+              userId: targetUserId,
+              oldWeight: currentWeight,
+              newWeight,
+            });
+          }
+          else if (Number.isNaN(newWeight) || newWeight <= 0) {
+            throw new Error("Invalid weight value");
+          }
+        }
+
+        // Perform the user update
+        const [updatedUser] = await tx
+          .update(users)
+          .set({
+            ...sanitizedUpdate,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, targetUserId))
+          .returning();
+
+        return updatedUser;
+      });
+
+      console.log("[Update User] Successfully updated user:", targetUserId);
+
+      // Remove password from response data
+      const { password: _, ...userWithoutPassword } = result;
+      return c.json(userWithoutPassword, HttpStatusCodes.OK);
+    }
+    catch (txError) {
+      console.error("[Update User] Transaction error:", txError);
+      throw txError; // Re-throw to be caught by outer try-catch
+    }
   }
   catch (error) {
     console.error("[Update User] Error:", error);
 
-    // Handle validation errors specially
+    // Handle validation errors
     if (error instanceof Error && error.name === "ValidationError") {
       return c.json({
         success: false,
@@ -204,6 +241,21 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
             code: "validation_failed",
             path: [],
             message: error.message,
+          }],
+        },
+      }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
+    }
+
+    // Handle weight-specific errors
+    if (error instanceof Error && error.message === "Invalid weight value") {
+      return c.json({
+        success: false,
+        error: {
+          name: "ValidationError",
+          issues: [{
+            code: "invalid_weight",
+            path: ["weight"],
+            message: "Weight must be a positive number",
           }],
         },
       }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
@@ -219,5 +271,4 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
     }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
-
 export { updateUser, updateUserHandler };
