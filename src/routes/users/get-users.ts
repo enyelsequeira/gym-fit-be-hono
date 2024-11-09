@@ -1,14 +1,23 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { and, like, sql } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { createPaginatedQuerySchema, createPaginatedResponseSchema } from "@/common";
 import db from "@/db";
-import { selectUsersSchema } from "@/db/schema";
+import { selectUsersSchema, users } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { isAdmin } from "@/middlewares/is-admin";
 import { UserRoutesGeneral } from "@/routes/users/user.routes";
+
+const usersPaginationSchema = createPaginatedQuerySchema({
+  username: z.string().optional(),
+});
+
+// Define the complete response schema
+const listUsersResponseSchema = createPaginatedResponseSchema(selectUsersSchema.omit({ password: true }));
 
 // Define error response schema
 const errorResponseSchema = z.object({
@@ -19,11 +28,14 @@ const errorResponseSchema = z.object({
 const listUser = createRoute({
   ...UserRoutesGeneral,
   method: "get",
-  middleware: [isUserAuthenticated, isAdmin], // Add both middlewares in correct order
+  middleware: [isUserAuthenticated, isAdmin],
+  request: {
+    query: usersPaginationSchema,
+  },
   responses: {
     [HttpStatusCodes.OK]: jsonContent(
-      z.array(selectUsersSchema.omit({ password: true })), // Remove password from response
-      "The list of users",
+      listUsersResponseSchema,
+      "The paginated list of users",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
       errorResponseSchema,
@@ -42,18 +54,56 @@ const listUser = createRoute({
 
 const userListHandler: AppRouteHandler<typeof listUser> = async (c) => {
   try {
-    console.log("[Users] Fetching all users");
+    console.log("[Users] Fetching users with pagination");
 
-    const users = await db.query.users.findMany({
-      orderBy: (users, { desc }) => [desc(users.createdAt)],
-    });
+    // Get query parameters
+    const { page, limit, username } = c.req.valid("query");
+    const offset = (page - 1) * limit;
 
-    console.log("[Users] Found users:", users.length);
+    // Build where conditions
+    const whereConditions = [];
+    if (username) {
+      whereConditions.push(like(users.username, `%${username}%`));
+    }
 
-    // Remove sensitive data before sending response
-    const sanitizedUsers = users.map(({ password: _, ...user }) => user);
+    // Get total count for pagination using Drizzle's count
+    const totalCountResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(and(...whereConditions))
+      .execute();
 
-    return c.json(sanitizedUsers, HttpStatusCodes.OK);
+    const totalCount = Number(totalCountResult[0].count);
+
+    // Get paginated users
+    const userResults = await db
+      .select()
+      .from(users)
+      .where(and(...whereConditions))
+      .limit(limit)
+      .offset(offset)
+      .orderBy(users.createdAt)
+      .execute();
+
+    console.log("[Users] Found users:", userResults.length);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Remove sensitive data and prepare response
+    const sanitizedUsers = userResults.map(({ password: _, ...user }) => user);
+
+    const response = {
+      data: sanitizedUsers,
+      page: {
+        size: limit,
+        totalElements: totalCount,
+        totalPages,
+        number: page - 1, // 0-based page number for consistency
+      },
+    };
+
+    return c.json(response, HttpStatusCodes.OK);
   }
   catch (error) {
     console.error("[Users] Error fetching users:", {
