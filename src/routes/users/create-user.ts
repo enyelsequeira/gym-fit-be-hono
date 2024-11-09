@@ -6,7 +6,9 @@ import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
 import { insertUsersSchema, users } from "@/db/schema";
-import { baseUserResponseSchema, hashPassword, UserRoutesGeneral } from "@/routes/users/user.routes";
+import { isUserAuthenticated } from "@/middlewares/auth-middleware";
+import { isAdmin } from "@/middlewares/is-admin";
+import { baseUserResponseSchema, hashPassword } from "@/routes/users/user.routes";
 
 // Define schemas for different types of error responses
 // Schema for validation errors
@@ -32,8 +34,10 @@ const internalErrorSchema = z.object({
 
 // Define the route configuration including OpenAPI documentation
 const createUser = createRoute({
-  ...UserRoutesGeneral, // Base route configuration (path, tags, etc.)
+  path: "/users/create",
+  tags: ["Users"],
   method: "post", // HTTP method
+  middleware: [isUserAuthenticated, isAdmin],
   request: {
     body: jsonContentRequired( // Request body configuration
       insertUsersSchema, // Schema for validating incoming user data

@@ -164,6 +164,12 @@ export const workouts = sqliteTable("workouts", {
 }));
 
 // Users table
+// !TODO we need an age
+// !TODO health issues/condtions
+// !TODO Observations to be created by the Trainer
+// !TODO workouts to have an URL to display the excercies
+// !TODO diet should also have some receipes and have filter by food type and pics and video to follow
+
 export const users = sqliteTable("users", {
   id: integer("id", { mode: "number" })
     .primaryKey({ autoIncrement: true }),
@@ -250,6 +256,10 @@ export const insertUsersSchema = createInsertSchema(
     lastName: schema => schema.lastName.min(1).max(100),
     password: schema => schema.password.min(8),
     type: schema => z.enum([UserType.ADMIN, UserType.USER]),
+    dateOfBirth: z.string()
+      .transform(str => str ? new Date(str) : null)
+      .optional()
+      .nullable(),
   },
 ).required({
   username: true,
