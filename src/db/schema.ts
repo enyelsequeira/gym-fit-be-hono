@@ -201,6 +201,9 @@ export const users = sqliteTable("users", {
   dateOfBirth: integer("date_of_birth", { mode: "timestamp" }),
   gender: text("gender", { enum: ["MALE", "FEMALE", "OTHER"] }),
   activityLevel: text("activity_level", { enum: ["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTREME"] }),
+  firstLogin: integer("first_login", { mode: "boolean" })
+    .notNull()
+    .default(true),
 });
 
 export const weightHistory = sqliteTable("weight_history", {
@@ -255,7 +258,8 @@ export const insertUsersSchema = createInsertSchema(
     name: schema => schema.name.min(1).max(100),
     lastName: schema => schema.lastName.min(1).max(100),
     password: schema => schema.password.min(8),
-    type: schema => z.enum([UserType.ADMIN, UserType.USER]),
+    type: _ => z.enum([UserType.ADMIN, UserType.USER]),
+    firstLogin: _ => z.boolean().default(true),
     dateOfBirth: z.string()
       .transform(str => str ? new Date(str) : null)
       .optional()

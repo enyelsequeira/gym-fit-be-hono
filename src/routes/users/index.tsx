@@ -1,4 +1,5 @@
 import { createRouter } from "@/lib/create-app";
+import { changePassword, changePasswordHandler } from "@/routes/users/change-users-password";
 import { createUser, createUserHandler } from "@/routes/users/create-user";
 import { getMe, getMeHandler } from "@/routes/users/get-me";
 import { getUserWeights, getUserWeightsHandler } from "@/routes/users/get-user-weights";
@@ -16,6 +17,7 @@ const router = createRouter()
   .openapi(
     getUserWeights,
     getUserWeightsHandler,
-  );
+  )
+  .openapi(changePassword, changePasswordHandler);
 
 export default router;

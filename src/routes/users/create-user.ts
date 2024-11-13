@@ -5,7 +5,7 @@ import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 import type { AppRouteHandler } from "@/lib/types";
 
 import db from "@/db";
-import { insertUsersSchema, users } from "@/db/schema";
+import { insertUsersSchema, users, weightHistory } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { isAdmin } from "@/middlewares/is-admin";
 import { baseUserResponseSchema, hashPassword } from "@/routes/users/user.routes";
@@ -109,16 +109,44 @@ const createUserHandler: AppRouteHandler<typeof createUser> = async (c) => {
     const hashedPassword = hashPassword(userData.password);
 
     // Insert the new user into the database
-    const [insertedUser] = await db
-      .insert(users)
-      .values({
-        ...userData,
-        password: hashedPassword,
-      })
-      .returning();
+    // const [insertedUser] = await db
+    //   .insert(users)
+    //   .values({
+    //     ...userData,
+    //     password: hashedPassword,
+    //   })
+    //   .returning();
+    const result = await db.transaction(async (tx) => {
+      // Insert the new user
+      const [insertedUser] = await tx
+        .insert(users)
+        .values({
+          ...userData,
+          password: hashedPassword,
+        })
+        .returning();
+
+      // If initial weight is provided, create weight history entry
+      if (userData.weight) {
+        await tx.insert(weightHistory).values({
+          userId: insertedUser.id,
+          weight: userData.weight,
+          date: new Date(),
+          source: "PROFILE_UPDATE",
+          notes: "Initial weight from user creation",
+        });
+
+        console.log("[Create User] Created initial weight history entry:", {
+          userId: insertedUser.id,
+          weight: userData.weight,
+        });
+      }
+
+      return insertedUser;
+    });
 
     // Remove password from response for security
-    const { password: _password, ...userWithoutPassword } = insertedUser;
+    const { password: _password, ...userWithoutPassword } = result;
     return c.json(userWithoutPassword, HttpStatusCodes.OK);
   }
   catch (error) {
