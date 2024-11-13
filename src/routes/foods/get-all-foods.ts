@@ -6,6 +6,7 @@ import { jsonContent } from "stoker/openapi/helpers";
 import type { AppRouteHandler } from "@/lib/types";
 
 import { createPaginatedQuerySchema, createPaginatedResponseSchema } from "@/common";
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { foods, selectFoods } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
@@ -14,12 +15,6 @@ import { isAdmin } from "@/middlewares/is-admin";
 export const foodsPaginationSchema = createPaginatedQuerySchema({
   name: z.string().optional(),
   category: z.string().optional(),
-});
-
-// Define error response schema
-const errorResponseSchema = z.object({
-  message: z.string(),
-  error: z.string(),
 });
 
 const getAllFood = createRoute({
@@ -38,15 +33,15 @@ const getAllFood = createRoute({
       "The paginated list of foods",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Not authenticated",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Not authorized (non-admin user)",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Server error",
     ),
   },
@@ -119,8 +114,12 @@ const getAllFoodsHandler: AppRouteHandler<typeof getAllFood> = async (c) => {
     });
 
     return c.json({
-      message: "Error fetching foods",
-      error: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: {
+        message: "Error fetching foods",
+        name: error instanceof Error ? error.message : "Unknown error",
+      },
+
     }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

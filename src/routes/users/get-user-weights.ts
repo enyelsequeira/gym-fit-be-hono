@@ -6,6 +6,7 @@ import { jsonContent } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { UserType, weightHistory } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
@@ -20,12 +21,6 @@ const querySchema = z.object({
   endDate: z.string().optional(),
   limit: z.string().transform(Number).optional(),
   source: weightHistorySelectSchema.shape.source.optional(),
-});
-
-// Error response schema
-const errorResponseSchema = z.object({
-  message: z.string(),
-  error: z.string(),
 });
 
 const getUserWeights = createRoute({
@@ -45,19 +40,19 @@ const getUserWeights = createRoute({
       "User weight history",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "User not authenticated",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Not authorized to view this user's weight history",
     ),
     [HttpStatusCodes.NOT_FOUND]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "User not found",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Internal server error",
     ),
   },
@@ -85,8 +80,11 @@ const getUserWeightsHandler: AppRouteHandler<typeof getUserWeights> = async (c) 
       console.log("[GetUserWeights] Unauthorized access attempt");
       return c.json(
         {
-          message: "Not authorized to view this user's weight history",
-          error: "Forbidden",
+          success: false,
+          error: {
+            message: "Not authorized to view this user's weight history",
+            name: "Forbidden",
+          },
         },
         HttpStatusCodes.FORBIDDEN,
       );
@@ -131,8 +129,12 @@ const getUserWeightsHandler: AppRouteHandler<typeof getUserWeights> = async (c) 
 
     return c.json(
       {
-        message: "Error retrieving weight history",
-        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+        error: {
+          message: "Error retrieving weight history",
+          name: error instanceof Error ? error.message : "Unknown error",
+        },
+
       },
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );

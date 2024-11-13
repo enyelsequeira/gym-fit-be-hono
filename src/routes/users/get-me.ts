@@ -1,19 +1,14 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { selectUsersSchema } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { UserRoutesGeneral } from "@/routes/users/user.routes";
-
-// Define all possible response schemas
-const errorResponseSchema = z.object({
-  message: z.string(),
-  error: z.string(),
-});
 
 const getMe = createRoute({
   ...UserRoutesGeneral,
@@ -26,11 +21,11 @@ const getMe = createRoute({
       "Currently authenticated user",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "User not authenticated",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Internal server error",
     ),
   },
@@ -46,8 +41,11 @@ const getMeHandler: AppRouteHandler<typeof getMe> = async (c) => {
       // This shouldn't happen if middleware is working correctly
       return c.json(
         {
-          message: "User not authenticated",
-          error: "Unauthorized",
+          success: false,
+          error: {
+            message: "User not authenticated",
+            name: "Unauthorized",
+          },
         },
         HttpStatusCodes.UNAUTHORIZED,
       );
@@ -67,8 +65,11 @@ const getMeHandler: AppRouteHandler<typeof getMe> = async (c) => {
       console.log("[GetMe] User not found in database");
       return c.json(
         {
-          message: "User not found",
-          error: "Unauthorized",
+          success: false,
+          error: {
+            message: "User not found",
+            name: "Unauthorized",
+          },
         },
         HttpStatusCodes.UNAUTHORIZED,
       );
@@ -93,8 +94,11 @@ const getMeHandler: AppRouteHandler<typeof getMe> = async (c) => {
 
     return c.json(
       {
-        message: "Error retrieving user details",
-        error: error instanceof Error ? error.message : "Unknown error",
+        success: false,
+        error: {
+          message: "Error retrieving user details",
+          name: error instanceof Error ? error.message : "Unknown error",
+        },
       },
       HttpStatusCodes.INTERNAL_SERVER_ERROR,
     );

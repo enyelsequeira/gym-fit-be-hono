@@ -6,6 +6,7 @@ import { jsonContent } from "stoker/openapi/helpers";
 import type { AppRouteHandler } from "@/lib/types";
 
 import { createPaginatedQuerySchema, createPaginatedResponseSchema } from "@/common";
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { selectUsersSchema, users } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
@@ -20,10 +21,6 @@ const usersPaginationSchema = createPaginatedQuerySchema({
 const listUsersResponseSchema = createPaginatedResponseSchema(selectUsersSchema.omit({ password: true }));
 
 // Define error response schema
-const errorResponseSchema = z.object({
-  message: z.string(),
-  error: z.string(),
-});
 
 const listUser = createRoute({
   ...UserRoutesGeneral,
@@ -38,15 +35,15 @@ const listUser = createRoute({
       "The paginated list of users",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Not authenticated",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Not authorized (non-admin user)",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Server error",
     ),
   },
@@ -112,8 +109,11 @@ const userListHandler: AppRouteHandler<typeof listUser> = async (c) => {
     });
 
     return c.json({
-      message: "Error fetching users",
-      error: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+      error: {
+        name: "InternalServerError",
+        message: error instanceof Error ? error.message : "An unexpected error occurred while fetching users",
+      },
     }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

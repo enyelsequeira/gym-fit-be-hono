@@ -1,13 +1,12 @@
 import { createRoute } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
-import { createErrorSchema } from "stoker/openapi/schemas";
-import { z } from "zod";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
-import { loginErrorSchema, loginResponseSchema, loginSchema } from "@/routes/auth/general";
+import { loginResponseSchema, loginSchema } from "@/routes/auth/general";
 import { verifyPassword } from "@/routes/users/user.routes";
 import { createSession, generateSessionToken } from "@/session";
 
@@ -26,11 +25,11 @@ const login = createRoute({
       "Login successful",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      loginErrorSchema,
+      basicErrorSchema,
       "Invalid credentials",
     ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      createErrorSchema(loginSchema),
+      basicErrorSchema,
       "Validation error(s)",
     ),
   },
@@ -46,8 +45,11 @@ const loginHandler: AppRouteHandler<typeof login> = async (c) => {
     if (!user || !verifyPassword(user.password, password)) {
       return c.json(
         {
-          message: "Invalid username or password",
-          error: "Authentication failed",
+          success: false as const,
+          error: {
+            name: "AUTHENTICATION_FAILED",
+            message: "Invalid username or password",
+          },
         },
         HttpStatusCodes.UNAUTHORIZED,
       );
@@ -56,31 +58,36 @@ const loginHandler: AppRouteHandler<typeof login> = async (c) => {
     // Generate session token
     const token = generateSessionToken();
 
-    // Create session and set cookie (remove manual cookie setting)
+    // Create session and set cookie
     const session = await createSession(c, token, user.id);
 
-    console.log("Session created:", session);
-    console.log("Cookie being set:", token);
+    console.log("[Login] Session created:", session);
+    console.log("[Login] Cookie being set:", token);
 
     const { password: _password, ...userWithoutPassword } = user;
 
     return c.json(
       {
-        user: userWithoutPassword,
+        success: true as const,
         message: "Login successful",
+        user: userWithoutPassword,
       },
       HttpStatusCodes.OK,
     );
   }
   catch (error) {
-    console.log({
-      demooooooo: error instanceof z.ZodError,
-      hellooooo: error,
-    });
+    console.error("[Login] Error:", error);
+
     // Handle validation errors
     if (error instanceof Error && error.name === "ValidationError") {
       return c.json(
-        createErrorSchema(loginSchema).parse(error),
+        {
+          success: false as const,
+          error: {
+            name: "VALIDATION_ERROR",
+            message: error.message || "Invalid input data",
+          },
+        },
         HttpStatusCodes.UNPROCESSABLE_ENTITY,
       );
     }
@@ -88,8 +95,11 @@ const loginHandler: AppRouteHandler<typeof login> = async (c) => {
     // For all other errors, return unauthorized
     return c.json(
       {
-        message: "An error occurred during login",
-        error: error instanceof Error ? error.message : "Unknown error",
+        success: false as const,
+        error: {
+          name: "LOGIN_ERROR",
+          message: "An error occurred during login",
+        },
       },
       HttpStatusCodes.UNAUTHORIZED,
     );

@@ -2,33 +2,23 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
+import { createErrorSchema } from "stoker/openapi/schemas";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { selectUsersSchema, users, UserType, weightHistory } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { UserRoutesGeneral } from "@/routes/users/user.routes";
 
-/**
- * We use PATCH (not PUT) because:
- * - PATCH is for partial updates (only updating some fields)
- * - PUT is for complete resource replacement (would require ALL fields)
- * - PATCH matches our business logic of allowing specific field updates
- *
- * HTTP Method differences:
- * - PUT: Replace entire resource (need all fields)
- * - PATCH: Modify parts of resource (only send fields to change)
- * - POST: Create new resource
- */
-
 // Define what fields can be updated (excluding sensitive/system fields)
 const updateUserSchema = selectUsersSchema
   .omit({
-    password: true, // Can't update password through this endpoint
-    id: true, // Can't change ID
-    createdAt: true, // System managed
-    updatedAt: true, // System managed
+    password: true,
+    id: true,
+    createdAt: true,
+    updatedAt: true,
   })
   .extend({
     dateOfBirth: z.coerce.date().nullable(),
@@ -36,44 +26,19 @@ const updateUserSchema = selectUsersSchema
     weight: z.coerce.string().nullable(),
     targetWeight: z.coerce.string().nullable(),
   })
-  .partial(); // Make all fields optional since it's a PATCH
+  .partial();
 
 // Success response won't include password
 const successResponseSchema = selectUsersSchema.omit({ password: true });
 
-// Standard error response structure
-const basicErrorSchema = z.object({
-  success: z.literal(false),
-  error: z.object({
-    name: z.string(),
-    message: z.string(),
-  }),
-});
-
-// Validation error includes more detailed issues array
-const validationErrorSchema = z.object({
-  success: z.literal(false),
-  error: z.object({
-    name: z.string(),
-    issues: z.array(
-      z.object({
-        code: z.string(),
-        path: z.array(z.union([z.string(), z.number()])),
-        message: z.string().optional(),
-      }),
-    ),
-  }),
-});
-
-// Route definition with OpenAPI metadata
 const updateUser = createRoute({
   ...UserRoutesGeneral,
-  method: "patch", // Using PATCH for partial updates
-  path: "/users/{userId}", // RESTful path pattern
-  middleware: [isUserAuthenticated], // Must be logged in
+  method: "patch",
+  path: "/users/{userId}",
+  middleware: [isUserAuthenticated],
   request: {
     params: z.object({
-      userId: z.string(), // URL parameter for user ID
+      userId: z.string(),
     }),
     body: jsonContentRequired(
       updateUserSchema,
@@ -81,7 +46,6 @@ const updateUser = createRoute({
     ),
   },
   responses: {
-    // Define all possible response types for OpenAPI
     [HttpStatusCodes.OK]: jsonContent(
       successResponseSchema,
       "Updated user",
@@ -99,7 +63,7 @@ const updateUser = createRoute({
       "User not found",
     ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      validationErrorSchema,
+      createErrorSchema(updateUserSchema),
       "Validation error(s)",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
@@ -108,6 +72,7 @@ const updateUser = createRoute({
     ),
   },
 });
+
 const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
   try {
     const currentUser = c.get("user");
@@ -130,7 +95,7 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
     if (!isAdmin && !isOwnUser) {
       console.log("[Update User] Unauthorized update attempt");
       return c.json({
-        success: false,
+        success: false as const,
         error: {
           name: "ForbiddenError",
           message: "Not authorized to update this user",
@@ -146,7 +111,7 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
     if (!existingUser) {
       console.log("[Update User] User not found:", targetUserId);
       return c.json({
-        success: false,
+        success: false as const,
         error: {
           name: "NotFoundError",
           message: "User not found",
@@ -162,7 +127,7 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
 
     if (Object.keys(sanitizedUpdate).length === 0) {
       return c.json({
-        success: false,
+        success: false as const,
         error: {
           name: "ValidationError",
           issues: [{
@@ -182,9 +147,7 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
           const newWeight = Number(sanitizedUpdate.weight);
           const currentWeight = existingUser.weight ? Number(existingUser.weight) : null;
 
-          // Check if weight is actually different
           if (!Number.isNaN(newWeight) && newWeight > 0 && newWeight !== currentWeight) {
-            // Create weight history entry
             await tx.insert(weightHistory).values({
               userId: targetUserId,
               weight: newWeight,
@@ -204,7 +167,6 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
           }
         }
 
-        // Perform the user update
         const [updatedUser] = await tx
           .update(users)
           .set({
@@ -219,22 +181,20 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
 
       console.log("[Update User] Successfully updated user:", targetUserId);
 
-      // Remove password from response data
       const { password: _, ...userWithoutPassword } = result;
       return c.json(userWithoutPassword, HttpStatusCodes.OK);
     }
     catch (txError) {
       console.error("[Update User] Transaction error:", txError);
-      throw txError; // Re-throw to be caught by outer try-catch
+      throw txError;
     }
   }
   catch (error) {
     console.error("[Update User] Error:", error);
 
-    // Handle validation errors
     if (error instanceof Error && error.name === "ValidationError") {
       return c.json({
-        success: false,
+        success: false as const,
         error: {
           name: "ValidationError",
           issues: [{
@@ -246,10 +206,9 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
       }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
     }
 
-    // Handle weight-specific errors
     if (error instanceof Error && error.message === "Invalid weight value") {
       return c.json({
-        success: false,
+        success: false as const,
         error: {
           name: "ValidationError",
           issues: [{
@@ -261,9 +220,8 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
       }, HttpStatusCodes.UNPROCESSABLE_ENTITY);
     }
 
-    // Generic error handler
     return c.json({
-      success: false,
+      success: false as const,
       error: {
         name: "InternalServerError",
         message: error instanceof Error ? error.message : "Unknown error",
@@ -271,4 +229,5 @@ const updateUserHandler: AppRouteHandler<typeof updateUser> = async (c) => {
     }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
+
 export { updateUser, updateUserHandler };

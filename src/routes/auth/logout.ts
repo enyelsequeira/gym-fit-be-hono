@@ -8,20 +8,11 @@ import { jsonContent } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema, successResponseSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { sessions } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { COOKIE_OPTIONS, SESSION_COOKIE_NAME } from "@/session";
-
-// Define response schemas
-const successResponseSchema = z.object({
-  message: z.string().describe("Success message"),
-});
-
-const errorResponseSchema = z.object({
-  message: z.string().describe("Error description"),
-  error: z.string().describe("Error type"),
-});
 
 // Helper function to invalidate sessions
 async function invalidateAllUserSessions(c: Context, userId: number) {
@@ -46,8 +37,8 @@ async function invalidateAllUserSessions(c: Context, userId: number) {
     secure: COOKIE_OPTIONS.secure,
     httpOnly: COOKIE_OPTIONS.httpOnly,
     sameSite: COOKIE_OPTIONS.sameSite,
-    expires: new Date(0), // Force expire the cookie
-    maxAge: 0, // Set maxAge to 0 as well
+    expires: new Date(0),
+    maxAge: 0,
   });
 
   console.log("[Logout] Session cookie cleared");
@@ -68,19 +59,19 @@ const logout = createRoute({
       "Logout successful",
     ),
     [HttpStatusCodes.BAD_REQUEST]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Invalid request parameters",
     ),
     [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Unauthorized",
     ),
     [HttpStatusCodes.FORBIDDEN]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Forbidden",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Internal server error",
     ),
   },
@@ -103,18 +94,24 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
     if (!authenticatedUser) {
       console.log("[Logout] No authenticated user found in context");
       return c.json({
-        message: "Authentication required",
-        error: "Unauthorized",
+        success: false as const,
+        error: {
+          name: "UNAUTHORIZED",
+          message: "Authentication required",
+        },
       }, HttpStatusCodes.UNAUTHORIZED);
     }
 
     // Parse the target user ID from the request params
     const targetUserId = Number.parseInt(params.userid, 10);
-    if (isNaN(targetUserId)) {
+    if (Number.isNaN(targetUserId)) {
       console.log("[Logout] Invalid user ID format");
       return c.json({
-        message: "Invalid user ID format",
-        error: "Bad Request",
+        success: false as const,
+        error: {
+          name: "BAD_REQUEST",
+          message: "Invalid user ID format",
+        },
       }, HttpStatusCodes.BAD_REQUEST);
     }
 
@@ -125,8 +122,11 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
         targetUserId,
       });
       return c.json({
-        message: "You can only logout your own account",
-        error: "Forbidden",
+        success: false as const,
+        error: {
+          name: "FORBIDDEN",
+          message: "You can only logout your own account",
+        },
       }, HttpStatusCodes.FORBIDDEN);
     }
 
@@ -135,6 +135,7 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
 
     console.log("[Logout] Logout process completed successfully");
     return c.json({
+      success: true as const,
       message: "Logout successful",
     }, HttpStatusCodes.OK);
   }
@@ -146,8 +147,11 @@ const logoutHandler: AppRouteHandler<typeof logout> = async (c) => {
     });
 
     return c.json({
-      message: "An error occurred during logout",
-      error: error instanceof Error ? error.message : "Unknown error",
+      success: false as const,
+      error: {
+        name: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred during logout",
+      },
     }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };

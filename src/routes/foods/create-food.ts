@@ -1,17 +1,13 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import * as HttpStatusCodes from "stoker/http-status-codes";
 import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { foods, insertFoodSchema, selectFoods } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
-
-const errorResponseSchema = z.object({
-  message: z.string(), // Human-readable error message
-  error: z.string(), // Error code or type
-});
 
 const createFood = createRoute({
   method: "post",
@@ -27,21 +23,20 @@ const createFood = createRoute({
     ),
   },
   responses: {
-    // Define possible response types and their schemas
     [HttpStatusCodes.OK]: jsonContent(
       selectFoods,
       "The food has been created",
     ),
     [HttpStatusCodes.CONFLICT]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Resource already exists",
     ),
     [HttpStatusCodes.UNPROCESSABLE_ENTITY]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "The validation error(s)",
     ),
     [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(
-      errorResponseSchema,
+      basicErrorSchema,
       "Internal server error",
     ),
   },
@@ -56,15 +51,15 @@ const createFoodHandler: AppRouteHandler<typeof createFood> = async (ctx) => {
       where: (foods, { eq }) => eq(foods.name, foodData.name),
     });
     if (existingProduct) {
-      // Return conflict error if username exists
-      return ctx.json(
-        {
-          message: "Resource already exists",
-          error: "DUPLICATE_RESOURCE",
+      return ctx.json({
+        success: false as const,
+        error: {
+          name: "DUPLICATE_RESOURCE",
+          message: "A food item with this name already exists",
         },
-        HttpStatusCodes.CONFLICT,
-      );
+      }, HttpStatusCodes.CONFLICT);
     }
+
     const [insertFood] = await db.insert(foods).values({
       ...foodData,
       createdBy: Number(contextUser?.id),
@@ -73,40 +68,35 @@ const createFoodHandler: AppRouteHandler<typeof createFood> = async (ctx) => {
     return ctx.json(insertFood, HttpStatusCodes.OK);
   }
   catch (error) {
-    console.log(error);
+    console.error("[Create Food] Error:", error);
 
     if (error instanceof Error) {
-      // Handle SQLite-specific constraint violations
       if (error.message.includes("SQLITE_CONSTRAINT")) {
-        return ctx.json(
-          {
-            message: "Resource already exists",
-            error: "CONSTRAINT_ERROR",
+        return ctx.json({
+          success: false as const,
+          error: {
+            name: "CONSTRAINT_ERROR",
+            message: "This food item conflicts with an existing entry",
           },
-          HttpStatusCodes.CONFLICT,
-        );
+        }, HttpStatusCodes.CONFLICT);
       }
-      console.log({
-        ERROR: error,
-      });
-      // Handle general database errors
-      return ctx.json(
-        {
-          message: "Failed to create user",
-          error: "DATABASE_ERROR",
+
+      return ctx.json({
+        success: false as const,
+        error: {
+          name: "DATABASE_ERROR",
+          message: "Failed to create food item",
         },
-        HttpStatusCodes.INTERNAL_SERVER_ERROR,
-      );
+      }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
     }
 
-    // Handle unexpected error types
-    return ctx.json(
-      {
+    return ctx.json({
+      success: false as const,
+      error: {
+        name: "UNKNOWN_ERROR",
         message: "An unexpected error occurred",
-        error: "UNKNOWN_ERROR",
       },
-      HttpStatusCodes.INTERNAL_SERVER_ERROR,
-    );
+    }, HttpStatusCodes.INTERNAL_SERVER_ERROR);
   }
 };
 

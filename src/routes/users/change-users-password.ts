@@ -1,28 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import * as HttpStatusCodes from "stoker/http-status-codes";
-import { jsonContentRequired } from "stoker/openapi/helpers";
+import { jsonContent, jsonContentRequired } from "stoker/openapi/helpers";
 
 import type { AppRouteHandler } from "@/lib/types";
 
+import { basicErrorSchema, successResponseSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { users } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
 import { hashPassword, verifyPassword } from "@/routes/users/user.routes";
 
 // Define all possible response schemas
-const successResponseSchema = z.object({
-  success: z.literal(true),
-  message: z.string(),
-});
-
-const errorResponseSchema = z.object({
-  success: z.literal(false),
-  error: z.object({
-    name: z.string(),
-    message: z.string(),
-  }),
-});
 
 const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -47,50 +36,25 @@ const changePassword = createRoute({
     ),
   },
   responses: {
-    [HttpStatusCodes.OK]: {
-      content: {
-        "application/json": {
-          schema: successResponseSchema,
-        },
-      },
-      description: "Password changed successfully",
-    },
-    [HttpStatusCodes.UNAUTHORIZED]: {
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-      description: "Invalid current password or not authenticated",
-    },
-    [HttpStatusCodes.FORBIDDEN]: {
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-      description: "Not authorized to change this user's password",
-    },
-    [HttpStatusCodes.NOT_FOUND]: {
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-      description: "User not found",
-    },
-    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: {
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-      description: "Internal server error",
-    },
+    [HttpStatusCodes.OK]: jsonContent(
+      successResponseSchema,
+      "Password changed successfully",
+    ),
+    [HttpStatusCodes.UNAUTHORIZED]: jsonContent(
+      basicErrorSchema,
+      "Invalid current password or not authenticated",
+    ),
+    [HttpStatusCodes.FORBIDDEN]: jsonContent(
+      basicErrorSchema,
+      "Not authorized to change this user's password",
+    ),
+    [HttpStatusCodes.NOT_FOUND]: jsonContent(
+      basicErrorSchema,
+      "User not found",
+    ),
+    [HttpStatusCodes.INTERNAL_SERVER_ERROR]: jsonContent(basicErrorSchema, "Internal server error"),
   },
 });
-
-// ... previous schema definitions remain the same ...
 
 const changePasswordHandler: AppRouteHandler<typeof changePassword> = async (c) => {
   try {

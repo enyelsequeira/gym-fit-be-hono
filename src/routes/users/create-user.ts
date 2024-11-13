@@ -108,14 +108,6 @@ const createUserHandler: AppRouteHandler<typeof createUser> = async (c) => {
     // Hash the password before storing
     const hashedPassword = hashPassword(userData.password);
 
-    // Insert the new user into the database
-    // const [insertedUser] = await db
-    //   .insert(users)
-    //   .values({
-    //     ...userData,
-    //     password: hashedPassword,
-    //   })
-    //   .returning();
     const result = await db.transaction(async (tx) => {
       // Insert the new user
       const [insertedUser] = await tx
