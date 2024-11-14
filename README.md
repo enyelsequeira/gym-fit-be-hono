@@ -1,14 +1,10 @@
-# Hono Open API Starter
+# Hono Open API
 
-A starter template for building fully documented type-safe JSON APIs with Hono and Open API.
+A documented  type-safe JSON APIs with Hono and Open API.
 
-> For a cloudflare specific template, see the [cloudflare branch](https://github.com/w3cj/hono-open-api-starter/tree/cloudflare) on this repo
 
-> For other deployment examples see the [hono-node-deployment-examples](https://github.com/w3cj/hono-node-deployment-examples) repo
-
-- [Hono Open API Starter](#hono-open-api-starter)
+- [Hono Open API](#hono-open-api)
   - [Included](#included)
-  - [Setup](#setup)
   - [Code Tour](#code-tour)
   - [Endpoints](#endpoints)
   - [References](#references)
@@ -24,52 +20,9 @@ A starter template for building fully documented type-safe JSON APIs with Hono a
 - Testing with [vitest](https://vitest.dev/)
 - Sensible editor, formatting and linting settings with [@antfu/eslint-config](https://github.com/antfu/eslint-config)
 
-## Setup
-
-Clone this template without git history
-
-```sh
-npx degit w3cj/hono-open-api-starter my-api
-cd my-api
-```
-
-Create `.env` file
-
-```sh
-cp .env.sample .env
-```
-
-Create sqlite db / push schema
-
-```sh
-pnpm drizzle-kit push
-```
-
-Install dependencies
-
-```sh
-pnpm install
-```
-
-Run
-
-```sh
-pnpm dev
-```
-
-Lint
-
-```sh
-pnpm lint
-```
-
-Test
-
-```sh
-pnpm test
-```
 
 ## Code Tour
+- Basic Endpoint could be found below
 
 Base hono app exported from [app.ts](./src/app.ts). Local development uses [@hono/node-server](https://hono.dev/docs/getting-started/nodejs) defined in [index.ts](./src/index.ts) - update this file or create a new entry point to use your preferred runtime.
 
