@@ -11,7 +11,10 @@
     "lint:fix": "npm run lint --fix",
     "test": "cross-env NODE_ENV=test vitest",
     "build": "tsc && tsc-alias",
-    "seed": "tsx seed.ts"
+    "seed": "tsx seed.ts",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.1",

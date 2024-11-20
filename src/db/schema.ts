@@ -11,6 +11,49 @@ export const UserType = {
   USER: "USER",
 } as const;
 
+// Users table
+// !TODO we need an age
+// !TODO health issues/condtions
+// !TODO Observations to be created by the Trainer
+// !TODO workouts to have an URL to display the excercies
+// !TODO diet should also have some receipes and have filter by food type and pics and video to follow
+
+export const users = sqliteTable("users", {
+  id: integer("id", { mode: "number" })
+    .primaryKey({ autoIncrement: true }),
+  username: text("username")
+    .notNull()
+    .unique(),
+  name: text("name")
+    .notNull(),
+  lastName: text("lastName")
+    .notNull(),
+  password: text("password")
+    .notNull(),
+  type: text("type", { enum: ["ADMIN", "USER"] })
+    .notNull()
+    .default("USER"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+  email: text("email").notNull().unique(),
+  height: real("height"), // in cm
+  weight: real("weight"), // in kg
+  targetWeight: real("target_weight"),
+  country: text("country"),
+  city: text("city"),
+  phone: text("phone"),
+  occupation: text("occupation"),
+  dateOfBirth: integer("date_of_birth", { mode: "timestamp" }),
+  gender: text("gender", { enum: ["MALE", "FEMALE", "OTHER"] }),
+  activityLevel: text("activity_level", { enum: ["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTREME"] }),
+  firstLogin: integer("first_login", { mode: "boolean" })
+    .notNull()
+    .default(true),
+});
+
 export const foods = sqliteTable("foods", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -57,18 +100,6 @@ export const diets = sqliteTable("diets", {
   userIdIdx: index("diets_user_id_idx").on(table.userId),
   activeDietIdx: index("diets_active_idx").on(table.userId, table.active),
 }));
-
-// Exercise Templates for quick workout creation
-export const exerciseTemplates = sqliteTable("exercise_templates", {
-  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  muscleGroups: text("muscle_groups").notNull(), // Comma-separated list of muscle groups
-  equipment: text("equipment"), // Required equipment
-  videoUrl: text("video_url"), // Tutorial video URL
-  createdBy: integer("created_by", { mode: "number" }).references(() => users.id),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-});
 
 // Define meal types as string literals instead of an object
 export type MealType = "BREAKFAST" | "LUNCH" | "DINNER" | "MORNING_SNACK" | "AFTERNOON_SNACK" | "EVENING_SNACK";
@@ -163,49 +194,6 @@ export const workouts = sqliteTable("workouts", {
   dateIdx: index("workouts_date_idx").on(table.date),
 }));
 
-// Users table
-// !TODO we need an age
-// !TODO health issues/condtions
-// !TODO Observations to be created by the Trainer
-// !TODO workouts to have an URL to display the excercies
-// !TODO diet should also have some receipes and have filter by food type and pics and video to follow
-
-export const users = sqliteTable("users", {
-  id: integer("id", { mode: "number" })
-    .primaryKey({ autoIncrement: true }),
-  username: text("username")
-    .notNull()
-    .unique(),
-  name: text("name")
-    .notNull(),
-  lastName: text("lastName")
-    .notNull(),
-  password: text("password")
-    .notNull(),
-  type: text("type", { enum: ["ADMIN", "USER"] })
-    .notNull()
-    .default("USER"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .$defaultFn(() => new Date())
-    .$onUpdate(() => new Date()),
-  email: text("email").notNull().unique(),
-  height: real("height"), // in cm
-  weight: real("weight"), // in kg
-  targetWeight: real("target_weight"),
-  country: text("country"),
-  city: text("city"),
-  phone: text("phone"),
-  occupation: text("occupation"),
-  dateOfBirth: integer("date_of_birth", { mode: "timestamp" }),
-  gender: text("gender", { enum: ["MALE", "FEMALE", "OTHER"] }),
-  activityLevel: text("activity_level", { enum: ["SEDENTARY", "LIGHT", "MODERATE", "VERY_ACTIVE", "EXTREME"] }),
-  firstLogin: integer("first_login", { mode: "boolean" })
-    .notNull()
-    .default(true),
-});
-
 export const weightHistory = sqliteTable("weight_history", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   userId: integer("user_id", { mode: "number" })
@@ -228,21 +216,32 @@ export const weightHistoryRelations = relations(weightHistory, ({ one }) => ({
 
 export const exercises = sqliteTable("exercises", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
-  workoutId: integer("workout_id", { mode: "number" }).notNull().references(() => workouts.id),
   name: text("name").notNull(),
-  sets: integer("sets").notNull(),
-  repetitions: integer("repetitions").notNull(),
-  weight: real("weight"),
-  duration: integer("duration"), // in seconds, for cardio exercises
-  distance: real("distance"), // for cardio exercises
-  restTime: integer("rest_time"), // rest time between sets in seconds
   notes: text("notes"),
-  order: integer("order").notNull(), // Exercise order in workout
+  alternative: text("alternative"),
+  video: text("video"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-}, table => ({
-  workoutIdIdx: index("exercises_workout_id_idx").on(table.workoutId),
-  exerciseOrderIdx: index("exercises_order_idx").on(table.workoutId, table.order),
-}));
+  updatedAt: integer("updated_at", { mode: "timestamp" }),
+});
+export const insertExercise = createInsertSchema(
+  exercises,
+  {
+    name: schema => schema.name.trim().min(3).max(300),
+    notes: schema => schema.notes.trim().min(1).max(400),
+    alternative: schema => schema.alternative.trim().min(1).max(100),
+    video: _ => z.string().url().trim(),
+  },
+).required({
+  name: true,
+  notes: true,
+  video: true,
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectExercise = createSelectSchema(exercises);
 
 // Type definitions
 export type User = InferSelectModel<typeof users>;
@@ -336,7 +335,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   diets: many(diets),
   createdFoods: many(foods, { relationName: "creator" }),
   progress: many(progress),
-  exerciseTemplates: many(exerciseTemplates, { relationName: "templateCreator" }),
   weightHistory: many(weightHistory),
 
 }));
@@ -350,26 +348,10 @@ export const foodsRelations = relations(foods, ({ one, many }) => ({
   mealFoods: many(mealFoods),
 }));
 
-export const exerciseTemplatesRelations = relations(exerciseTemplates, ({ one }) => ({
-  creator: one(users, {
-    fields: [exerciseTemplates.createdBy],
-    references: [users.id],
-    relationName: "templateCreator",
-  }),
-}));
-
 export const workoutsRelations = relations(workouts, ({ one, many }) => ({
   user: one(users, {
     fields: [workouts.userId],
     references: [users.id],
-  }),
-  exercises: many(exercises),
-}));
-
-export const exercisesRelations = relations(exercises, ({ one }) => ({
-  workout: one(workouts, {
-    fields: [exercises.workoutId],
-    references: [workouts.id],
   }),
 }));
 
@@ -411,7 +393,6 @@ export type Session = InferSelectModel<typeof sessions>;
 
 export type Workout = InferSelectModel<typeof workouts>;
 export type Exercise = InferSelectModel<typeof exercises>;
-export type ExerciseTemplate = InferSelectModel<typeof exerciseTemplates>;
 export type Food = InferSelectModel<typeof foods>;
 export type Diet = InferSelectModel<typeof diets>;
 export type Meal = InferSelectModel<typeof meals>;
