@@ -17,6 +17,7 @@ export const UserType = {
 // !TODO Observations to be created by the Trainer
 // !TODO workouts to have an URL to display the excercies
 // !TODO diet should also have some receipes and have filter by food type and pics and video to follow
+// !TODO we need a way to add pictures as well to keep track of progress
 
 export const users = sqliteTable("users", {
   id: integer("id", { mode: "number" })

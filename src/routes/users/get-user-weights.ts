@@ -10,6 +10,7 @@ import { basicErrorSchema } from "@/common/response-schemas";
 import db from "@/db";
 import { UserType, weightHistory } from "@/db/schema";
 import { isUserAuthenticated } from "@/middlewares/auth-middleware";
+import { isAdmin } from "@/middlewares/is-admin";
 import { UserRoutesGeneral } from "@/routes/users/user.routes";
 
 // Use drizzle-zod to create schemas directly from our table definitions
@@ -27,7 +28,7 @@ const getUserWeights = createRoute({
   ...UserRoutesGeneral,
   path: "/users/{userId}/weights",
   method: "get",
-  middleware: [isUserAuthenticated],
+  middleware: [isUserAuthenticated, isAdmin],
   request: {
     params: z.object({
       userId: z.string(),
