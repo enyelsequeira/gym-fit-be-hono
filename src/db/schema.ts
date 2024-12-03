@@ -221,6 +221,7 @@ export const exercises = sqliteTable("exercises", {
   notes: text("notes"),
   alternative: text("alternative"),
   video: text("video"),
+  muscleGroup: text("muscle_group").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }),
 });
@@ -231,10 +232,12 @@ export const insertExercise = createInsertSchema(
     notes: schema => schema.notes.trim().min(1).max(400),
     alternative: schema => schema.alternative.trim().min(1).max(100),
     video: _ => z.string().url().trim(),
+    muscleGroup: schema => schema.muscleGroup.trim().min(2).max(50),
   },
 ).required({
   name: true,
   notes: true,
+  muscleGroup: true,
   video: true,
 }).omit({
   id: true,
