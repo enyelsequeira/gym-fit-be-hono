@@ -11,6 +11,16 @@ export const UserType = {
   USER: "USER",
 } as const;
 
+export const WORKOUT_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY",
+] as const;
+
 // Users table
 // !TODO we need an age
 // !TODO health issues/condtions
@@ -176,6 +186,26 @@ export const progress = sqliteTable("progress", {
   userDateIdx: index("progress_user_date_idx").on(table.userId, table.date),
 }));
 
+export const workoutPlans = sqliteTable("workout_plans", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  userId: integer("user_id", { mode: "number" })
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+  endDate: integer("end_date", { mode: "timestamp" }).notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => ({
+  userIdIdx: index("workout_plans_user_id_idx").on(table.userId),
+  dateRangeIdx: index("workout_plans_date_range_idx").on(table.startDate, table.endDate),
+  activeIdx: index("workout_plans_active_idx").on(table.userId, table.isActive),
+}));
+
 export const workouts = sqliteTable("workouts", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   userId: integer("user_id", { mode: "number" }).notNull().references(() => users.id),
@@ -225,6 +255,49 @@ export const exercises = sqliteTable("exercises", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }),
 });
+
+export const workoutPlanDays = sqliteTable("workout_plan_days", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  planId: integer("plan_id", { mode: "number" })
+    .notNull()
+    .references(() => workoutPlans.id),
+  day: text("day", { enum: WORKOUT_DAYS }).notNull(),
+  order: integer("order").notNull(), // To maintain exercise order within the day
+  exerciseId: integer("exercise_id", { mode: "number" })
+    .notNull()
+    .references(() => exercises.id),
+  sets: text("sets").notNull(), // Store as string to allow ranges like "3-4"
+  reps: text("reps").notNull(), // Store as string to allow ranges like "8-12"
+  notes: text("notes"),
+  restTime: integer("rest_time"), // Rest time in seconds
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => ({
+  planDayIdx: index("workout_plan_days_plan_day_idx").on(table.planId, table.day),
+  orderIdx: index("workout_plan_days_order_idx").on(table.planId, table.day, table.order),
+}));
+
+export const workoutPlansRelations = relations(workoutPlans, ({ one, many }) => ({
+  user: one(users, {
+    fields: [workoutPlans.userId],
+    references: [users.id],
+  }),
+  days: many(workoutPlanDays),
+}));
+
+export const workoutPlanDaysRelations = relations(workoutPlanDays, ({ one }) => ({
+  plan: one(workoutPlans, {
+    fields: [workoutPlanDays.planId],
+    references: [workoutPlans.id],
+  }),
+  exercise: one(exercises, {
+    fields: [workoutPlanDays.exerciseId],
+    references: [exercises.id],
+  }),
+}));
+
 export const insertExercise = createInsertSchema(
   exercises,
   {
@@ -340,6 +413,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   createdFoods: many(foods, { relationName: "creator" }),
   progress: many(progress),
   weightHistory: many(weightHistory),
+  workoutPlans: many(workoutPlans),
 
 }));
 
@@ -402,3 +476,44 @@ export type Diet = InferSelectModel<typeof diets>;
 export type Meal = InferSelectModel<typeof meals>;
 export type MealFood = InferSelectModel<typeof mealFoods>;
 export type Progress = InferSelectModel<typeof progress>;
+
+// Types
+export type WorkoutPlan = InferSelectModel<typeof workoutPlans>;
+export type WorkoutPlanDay = InferSelectModel<typeof workoutPlanDays>;
+
+// Zod schemas for validation
+export const insertWorkoutPlanSchema = createInsertSchema(workoutPlans, {
+  name: schema => schema.name.trim().min(3).max(100),
+  startDate: schema => schema.startDate,
+  endDate: schema => schema.endDate,
+  notes: schema => schema.notes.optional(),
+  isActive: schema => schema.isActive.default(true),
+}).required({
+  name: true,
+  startDate: true,
+  endDate: true,
+  userId: true,
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWorkoutPlanDaySchema = createInsertSchema(workoutPlanDays, {
+  day: schema => schema.day,
+  sets: schema => schema.sets.trim().min(1),
+  reps: schema => schema.reps.trim().min(1),
+  notes: schema => schema.notes.optional(),
+  restTime: schema => schema.restTime.optional(),
+}).required({
+  planId: true,
+  day: true,
+  exerciseId: true,
+  sets: true,
+  reps: true,
+  order: true,
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
