@@ -5,6 +5,7 @@ import exerciseRouter from "@/routes/exercises";
 import foodRouter from "@/routes/foods";
 import index from "@/routes/index.route";
 import users from "@/routes/users";
+import workoutPlans from "@/routes/weights";
 
 const app = createApp();
 
@@ -16,6 +17,7 @@ const routes = [
   login,
   foodRouter,
   exerciseRouter,
+  workoutPlans,
 ] as const;
 
 routes.forEach((route) => {

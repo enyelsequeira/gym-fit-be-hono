@@ -279,6 +279,37 @@ export const workoutPlanDays = sqliteTable("workout_plan_days", {
   orderIdx: index("workout_plan_days_order_idx").on(table.planId, table.day, table.order),
 }));
 
+export const exerciseWeights = sqliteTable("exercise_weights", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  userId: integer("user_id", { mode: "number" })
+    .notNull()
+    .references(() => users.id),
+  planDayId: integer("plan_day_id", { mode: "number" })
+    .notNull()
+    .references(() => workoutPlanDays.id),
+  weight: real("weight").notNull(),
+  weekStart: integer("week_start", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+}, table => ({
+  userWeekIdx: index("exercise_weights_user_week_idx").on(table.userId, table.weekStart),
+  planDayWeekIdx: index("exercise_weights_plan_day_week_idx").on(table.planDayId, table.weekStart),
+}));
+
+export const exerciseWeightsRelations = relations(exerciseWeights, ({ one }) => ({
+  user: one(users, {
+    fields: [exerciseWeights.userId],
+    references: [users.id],
+  }),
+  planDay: one(workoutPlanDays, {
+    fields: [exerciseWeights.planDayId],
+    references: [workoutPlanDays.id],
+  }),
+}));
+
 export const workoutPlansRelations = relations(workoutPlans, ({ one, many }) => ({
   user: one(users, {
     fields: [workoutPlans.userId],
@@ -287,7 +318,7 @@ export const workoutPlansRelations = relations(workoutPlans, ({ one, many }) => 
   days: many(workoutPlanDays),
 }));
 
-export const workoutPlanDaysRelations = relations(workoutPlanDays, ({ one }) => ({
+export const workoutPlanDaysRelations = relations(workoutPlanDays, ({ one, many }) => ({
   plan: one(workoutPlans, {
     fields: [workoutPlanDays.planId],
     references: [workoutPlans.id],
@@ -296,6 +327,8 @@ export const workoutPlanDaysRelations = relations(workoutPlanDays, ({ one }) => 
     fields: [workoutPlanDays.exerciseId],
     references: [exercises.id],
   }),
+  weights: many(exerciseWeights),
+
 }));
 
 export const insertExercise = createInsertSchema(
@@ -414,6 +447,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   progress: many(progress),
   weightHistory: many(weightHistory),
   workoutPlans: many(workoutPlans),
+  exerciseWeights: many(exerciseWeights),
 
 }));
 

@@ -20,35 +20,30 @@ table diets {
   }
 }
 
-table exercise_templates {
+table exercise_weights {
   id integer [pk, not null, increment]
-  name text [not null]
-  description text [not null]
-  muscle_groups text [not null]
-  equipment text
-  video_url text
-  created_by integer
+  user_id integer [not null]
+  plan_day_id integer [not null]
+  weight real [not null]
+  week_start integer [not null]
   created_at integer
+  updated_at integer
+
+  indexes {
+    (user_id, week_start) [name: 'exercise_weights_user_week_idx']
+    (plan_day_id, week_start) [name: 'exercise_weights_plan_day_week_idx']
+  }
 }
 
 table exercises {
   id integer [pk, not null, increment]
-  workout_id integer [not null]
   name text [not null]
-  sets integer [not null]
-  repetitions integer [not null]
-  weight real
-  duration integer
-  distance real
-  rest_time integer
   notes text
-  order integer [not null]
+  alternative text
+  video text
+  muscle_group text [not null]
   created_at integer
-
-  indexes {
-    workout_id [name: 'exercises_workout_id_idx']
-    (workout_id, order) [name: 'exercises_order_idx']
-  }
+  updated_at integer
 }
 
 table foods {
@@ -146,6 +141,68 @@ table users {
   type text [not null, default: 'USER']
   created_at integer
   updated_at integer
+  email text [not null, unique]
+  height real
+  weight real
+  target_weight real
+  country text
+  city text
+  phone text
+  occupation text
+  date_of_birth integer
+  gender text
+  activity_level text
+  first_login integer [not null, default: 1]
+}
+
+table weight_history {
+  id integer [pk, not null, increment]
+  user_id integer [not null]
+  weight real [not null]
+  date integer
+  source text [not null]
+  notes text
+
+  indexes {
+    (user_id, date) [name: 'weight_history_user_date_idx']
+  }
+}
+
+table workout_plan_days {
+  id integer [pk, not null, increment]
+  plan_id integer [not null]
+  day text [not null]
+  order integer [not null]
+  exercise_id integer [not null]
+  sets text [not null]
+  reps text [not null]
+  notes text
+  rest_time integer
+  created_at integer
+  updated_at integer
+
+  indexes {
+    (plan_id, day) [name: 'workout_plan_days_plan_day_idx']
+    (plan_id, day, order) [name: 'workout_plan_days_order_idx']
+  }
+}
+
+table workout_plans {
+  id integer [pk, not null, increment]
+  user_id integer [not null]
+  name text [not null]
+  start_date integer [not null]
+  end_date integer [not null]
+  is_active integer [default: 1]
+  notes text
+  created_at integer
+  updated_at integer
+
+  indexes {
+    user_id [name: 'workout_plans_user_id_idx']
+    (start_date, end_date) [name: 'workout_plans_date_range_idx']
+    (user_id, is_active) [name: 'workout_plans_active_idx']
+  }
 }
 
 table workouts {
@@ -169,11 +226,11 @@ table workouts {
 
 ref: diets.user_id > users.id
 
-ref: exercise_templates.created_by - users.id
+ref: exercise_weights.user_id > users.id
 
-ref: exercises.workout_id > workouts.id
+ref: exercise_weights.plan_day_id > workout_plan_days.id
 
-ref: foods.created_by - users.id
+ref: foods.created_by > users.id
 
 ref: meal_foods.meal_id > meals.id
 
@@ -184,5 +241,13 @@ ref: meals.diet_id > diets.id
 ref: progress.user_id > users.id
 
 ref: sessions.user_id - users.id
+
+ref: weight_history.user_id > users.id
+
+ref: workout_plan_days.plan_id > workout_plans.id
+
+ref: workout_plan_days.exercise_id - exercises.id
+
+ref: workout_plans.user_id > users.id
 
 ref: workouts.user_id > users.id
